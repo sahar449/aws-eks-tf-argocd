@@ -6,13 +6,12 @@ metadata:
     kubernetes.io/ingress.class: "alb"
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: instance
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP":80}]'
-    alb.ingress.kubernetes.io/ssl-redirect: '443'
-    external-dns.alpha.kubernetes.io/hostname: "www.saharbittman.com"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    # הסר את השורה הבאה, כי היא קשורה ל-SSL
+    # alb.ingress.kubernetes.io/ssl-redirect: '443'
+    # אם אתה לא רוצה external-dns, אפשר למחוק או להשאיר
+    # external-dns.alpha.kubernetes.io/hostname: "www.saharbittman.com"
 spec:
-  tls:
-  - hosts:
-    - "*.saharbittman.com"
   rules:
   - host: www.saharbittman.com
     http:
