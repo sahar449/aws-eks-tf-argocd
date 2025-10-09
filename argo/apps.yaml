@@ -92,43 +92,6 @@ spec:
         maxDuration: 3m
 
 ---
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: external-dns
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://kubernetes-sigs.github.io/external-dns
-    chart: external-dns
-    targetRevision: 1.18.0
-    helm:
-      values: |
-        provider: aws
-        aws:
-          zoneType: public
-          region: us-west-2
-        txtOwnerId: my-cluster
-        policy: sync
-        domainFilters:
-          - saharbittman.com
-        serviceAccount:
-          create: true
-          name: external-dns
-          annotations:
-            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-external-dns-role-fvnofnds
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: kube-system
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-
----
 # =====================================
 # 3. Flask App
 # =====================================
@@ -142,7 +105,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/<YOUR-USERNAME>/<YOUR-REPO>.git
+    repoURL: https://github.com/sahar449/aws-eks-tf-argocd.git
     targetRevision: main
     path: argo/flask-app
   destination:
