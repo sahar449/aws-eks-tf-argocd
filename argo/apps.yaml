@@ -106,7 +106,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/sahar449/aws-eks-tf-argocd.git
-    targetRevision: main
+    targetRevision: HEAD
     path: argo/flask-app
   destination:
     server: https://kubernetes.default.svc
