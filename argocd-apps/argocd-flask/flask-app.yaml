@@ -13,8 +13,7 @@ spec:
   source:
     repoURL: https://github.com/sahar449/aws-eks-tf-argocd.git
     targetRevision: HEAD
-    chart: flask-app
-    path: argocd-apps/chart-flask
+    path: chart-flask
   destination:
     server: https://kubernetes.default.svc
     namespace: default
@@ -22,5 +21,14 @@ spec:
     automated:
       prune: true
       selfHeal: true
+      allowEmpty: true
     syncOptions:
       - CreateNamespace=true
+      - PruneLast=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
