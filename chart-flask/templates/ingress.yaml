@@ -28,5 +28,3 @@ spec:
                 port:
                   number: 5000
   cleanupOnDelete: true  # ensures ALB, listeners, and related resources are deleted when this Ingress is deleted
-  finalizers:
-    - ingress.k8s.aws/resource
