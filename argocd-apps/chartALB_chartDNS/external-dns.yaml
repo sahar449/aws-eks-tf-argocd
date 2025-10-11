@@ -6,6 +6,8 @@ kind: Application
 metadata:
   name: external-dns
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # Ensures this app is deployed before any apps depending on External DNS
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -25,11 +27,12 @@ spec:
           create: true
           name: external-dns
           annotations:
-            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-external-dns-role-zti9w837
+            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-external-dns-role-hdjuyvxk
         txtOwnerId: eksdemo-cluster
         sources:
           - ingress
           - service
+        cleanupOnDelete: true  # ensures DNS records are deleted when the ingress is deleted
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
@@ -37,8 +40,11 @@ spec:
     automated:
       prune: true
       selfHeal: true
+      allowEmpty: true # Allows the application to be empty without causing a failure
     syncOptions:
       - CreateNamespace=true
+      - PruneLast=true  # Ensures resources are created before any are deleted
+      - PrunePropagationPolicy=foreground # Ensures resources are deleted in the correct order
     retry:
       limit: 5
       backoff:

@@ -7,7 +7,7 @@ metadata:
   name: flask-app
   namespace: argocd
   finalizers:
-    - resources-finalizer.argocd.argoproj.io
+    - resources-finalizer.argocd.argoproj.io   # finalizers tell ArgoCD to delete all associated resources before removing the Application itself
 spec:
   project: default
   source:
@@ -21,11 +21,10 @@ spec:
     automated:
       prune: true
       selfHeal: true
-      allowEmpty: true
+      allowEmpty: true  # allows ArgoCD to successfully sync even if the chart produces no resources
     syncOptions:
-      - CreateNamespace=true
-      - PruneLast=true
-      - PrunePropagationPolicy=foreground
+      - PruneLast=true  # delete old resources before create the new resources
+      - PrunePropagationPolicy=foreground  # delete resoucres according to their dependencies
     retry:
       limit: 5
       backoff:

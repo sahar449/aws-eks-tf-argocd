@@ -6,6 +6,8 @@ kind: Application
 metadata:
   name: aws-load-balancer-controller
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"   # Ensures this app is deployed before any apps depending on the ALB Ingress Controllers
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -18,12 +20,13 @@ spec:
       values: |
         clusterName: eksdemo-cluster
         region: us-west-2
-        vpcId: vpc-0025d833deed4e76f
+        vpcId: vpc-0ceb7d73045e04849
         serviceAccount:
           create: true
           name: aws-load-balancer-controller
           annotations:
-            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-lb-controller-role-zti9w837
+            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-lb-controller-role-hdjuyvxk
+          cleanupOnDelete: true   # <--- this ensures ALB + listeners + SGs are deleted
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
@@ -31,11 +34,11 @@ spec:
     automated:
       prune: true
       selfHeal: true
-      allowEmpty: true
+      allowEmpty: true # allows ArgoCD to successfully sync even if the chart produces no resources
     syncOptions:
       - CreateNamespace=true
-      - PruneLast=true
-      - PrunePropagationPolicy=foreground
+      - PruneLast=true # ensures pruning of resources happens after all new resources are created
+      - PrunePropagationPolicy=foreground # deletes dependent resources before deleting the parent resource
     retry:
       limit: 5
       backoff:
