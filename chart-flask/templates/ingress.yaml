@@ -2,6 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: flask-ingress
+  namespace: default
   annotations:
     kubernetes.io/ingress.class: "alb"
     alb.ingress.kubernetes.io/scheme: internet-facing
@@ -10,17 +11,22 @@ metadata:
     alb.ingress.kubernetes.io/ssl-redirect: '443'
     external-dns.alpha.kubernetes.io/hostname: "www.saharbittman.com"
 spec:
+  ingressClassName: alb
   tls:
-  - hosts:
-    - "*.saharbittman.com"
+    - hosts:
+        - "*.saharbittman.com"
+      secretName: flask-tls
   rules:
-  - host: www.saharbittman.com
-    http:
-      paths:
-        - path: /
-          pathType: Prefix
-          backend:
-            service:
-              name: flask-app-service
-              port:
-                number: 5000
+    - host: www.saharbittman.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: flask-app-service
+                port:
+                  number: 5000
+  cleanupOnDelete: true  # ensures ALB, listeners, and related resources are deleted when this Ingress is deleted
+  finalizers:
+    - ingress.k8s.aws/resource
