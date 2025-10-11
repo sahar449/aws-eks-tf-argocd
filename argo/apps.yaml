@@ -18,12 +18,12 @@ spec:
       values: |
         clusterName: eksdemo-cluster
         region: us-west-2
-        vpcId: vpc-02414cc449ada6a63
+        vpcId: vpc-0025d833deed4e76f
         serviceAccount:
           create: true
           name: aws-load-balancer-controller
           annotations:
-            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-lb-controller-role-ka3ucneb
+            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-lb-controller-role-zti9w837
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
@@ -70,7 +70,7 @@ spec:
           create: true
           name: external-dns
           annotations:
-            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-external-dns-role-ka3ucneb
+            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-external-dns-role-zti9w837
         txtOwnerId: eksdemo-cluster
         sources:
           - ingress
