@@ -14,7 +14,7 @@ spec:
     repoURL: https://github.com/sahar449/aws-eks-tf-argocd.git
     targetRevision: HEAD
     chart: flask-app
-    path: chart-flask/flask-app
+    path: argocd-apps/chart-flask
   destination:
     server: https://kubernetes.default.svc
     namespace: default
