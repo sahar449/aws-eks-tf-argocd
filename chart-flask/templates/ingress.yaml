@@ -10,11 +10,15 @@ metadata:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP":80}]'
     alb.ingress.kubernetes.io/ssl-redirect: '443'
     external-dns.alpha.kubernetes.io/hostname: "www.saharbittman.com"
+    # Add these for proper cleanup:
+    alb.ingress.kubernetes.io/tags: "ManagedBy=argocd,Application=flask-app"
+  finalizers:
+    - ingress.k8s.aws/resources  # Ensures ALB cleanup
 spec:
   ingressClassName: alb
   tls:
     - hosts:
-        - "*.saharbittman.com"
+        - www.saharbittman.com  # Match the actual host, not wildcard
       secretName: flask-tls
   rules:
     - host: www.saharbittman.com
@@ -27,4 +31,3 @@ spec:
                 name: flask-app-service
                 port:
                   number: 5000
-  cleanupOnDelete: true  # ensures ALB, listeners, and related resources are deleted when this Ingress is deleted
