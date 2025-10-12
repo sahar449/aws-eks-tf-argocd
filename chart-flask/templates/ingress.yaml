@@ -27,4 +27,4 @@ spec:
                 name: flask-app-service
                 port:
                   number: 5000
-  #cleanupOnDelete: true  # ensures ALB, listeners, and related resources are deleted when this Ingress is deleted
+  cleanupOnDelete: true  # ensures ALB, listeners, and related resources are deleted when this Ingress is deleted
