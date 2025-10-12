@@ -53,6 +53,12 @@ jobs:
             terraform destroy -auto-approve
           fi
 
+      # helm upgrade --install argocd argo/argo-cd \
+      #   --namespace argocd \
+      #   --create-namespace \
+      #   --set server.service.type=LoadBalancer \
+      #   --set server.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"="classic"
+  
   terraform_destroy_on_failure:
     needs: terraform
     if: failure()
