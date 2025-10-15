@@ -2,6 +2,15 @@ name: CI-CD Full Pipeline
 
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'Choose action'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
 
 permissions:
   id-token: write
@@ -16,6 +25,7 @@ env:
 jobs:
   ci_cd_pipeline:
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.action == 'apply' }}
 
     steps:
       - name: Checkout repo
@@ -49,14 +59,33 @@ jobs:
       - name: Push Docker Image to ECR
         run: |
           docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com/${{ env.repo_name }}:${{ env.image_tag }}
-          
+
       - name: Terraform Apply Infrastructure
         run: |
           terraform apply -auto-approve
 
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region ${{ env.aws_region }} --name eksdemo-cluster
+
+      - name: Patch aws-auth ConfigMap
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: aws-auth
+            namespace: kube-system
+          data:
+            mapUsers: |
+              - userarn: arn:aws:iam::${{ secrets.AWS_ACCOUNT_NUMBER }}:user/tf
+                username: tf
+                groups:
+                  - system:masters
+          EOF
+
       - name: Helm Install ArgoCD
         run: |
-          aws eks update-kubeconfig --region us-west-2 --name eksdemo-cluster
           helm repo add argo https://argoproj.github.io/argo-helm
           helm repo update
           helm upgrade --install argocd argo/argo-cd \
@@ -64,7 +93,7 @@ jobs:
             --create-namespace \
             --set server.service.type=LoadBalancer \
             --set server.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"="classic"
-  
+
       - name: Clone repo and apply AppOfApps
         run: |
           git clone https://github.com/sahar449/aws-eks-tf-argocd.git
@@ -72,10 +101,10 @@ jobs:
           cd aws-eks-tf-argocd/argocd-apps
           kubectl apply -f appOfApps.yaml
 
-  terraform_destroy_on_failure:
-    needs: ci_cd_pipeline
-    if: failure()
+  terraform_destroy:
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.action == 'destroy' || failure() }}
+    needs: ci_cd_pipeline
 
     steps:
       - name: Checkout repo
@@ -84,25 +113,25 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.5.7
+          terraform_version: ${{ env.terraform_version }}
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: us-west-2
+          aws-region: ${{ env.aws_region }}
           role-session-name: github-actions
 
-      - name: Terraform Destroy (Step 1 - EKS)
+      - name: Terraform Destroy EKS
         run: |
           terraform destroy -target=module.eks -auto-approve || true
 
       - name: Remove Security Groups from VPC
         run: |
-          aws ec2 describe-security-groups --region us-west-2 \
+          aws ec2 describe-security-groups --region ${{ env.aws_region }} \
             --query 'SecurityGroups[?GroupName!=`default`].GroupId' --output text | \
-            xargs -r -n1 aws ec2 delete-security-group --region us-west-2 --group-id || true
+            xargs -r -n1 aws ec2 delete-security-group --region ${{ env.aws_region }} --group-id || true
 
-      - name: Terraform Destroy (Step 2 - All Remaining)
+      - name: Terraform Destroy Remaining Resources
         run: |
           terraform destroy -auto-approve || true
