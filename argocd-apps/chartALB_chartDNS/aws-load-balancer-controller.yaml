@@ -20,12 +20,12 @@ spec:
       values: |
         clusterName: eksdemo-cluster
         region: us-west-2
-        vpcId: vpc-03a5b820b9e201bb2
+        vpcId: vpc-0d9776951d1749947
         serviceAccount:
           create: true
           name: aws-load-balancer-controller
           annotations:
-            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-lb-controller-role-a7l4ot1r
+            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-lb-controller-role-dbs36x49
           cleanupOnDelete: true   # <--- this ensures ALB + listeners + SGs are deleted
   destination:
     server: https://kubernetes.default.svc
