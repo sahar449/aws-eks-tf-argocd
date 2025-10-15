@@ -49,9 +49,9 @@ jobs:
       - name: Push Docker Image to ECR
         run: |
           docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com/${{ env.repo_name }}:${{ env.image_tag }}
+          
       - name: Terraform Apply Infrastructure
         run: |
-          cd terraform
           terraform apply -auto-approve
 
       - name: Helm Install ArgoCD
