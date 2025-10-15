@@ -1,0 +1,89 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-apps
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          # Wave 1 - תשתיות
+          - name: aws-load-balancer-controller
+            namespace: kube-system
+            repoURL: https://aws.github.io/eks-charts
+            chart: aws-load-balancer-controller
+            targetRevision: 1.7.0
+            syncWave: "1"
+            values: |
+              clusterName: eksdemo-cluster
+              region: us-west-2
+              vpcId: vpc-026a43641c9a31bbd
+              serviceAccount:
+                create: true
+                name: aws-load-balancer-controller
+                annotations:
+                  eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-lb-controller-role-j3lrxpnp
+
+          - name: external-dns
+            namespace: kube-system
+            repoURL: https://kubernetes-sigs.github.io/external-dns/
+            chart: external-dns
+            targetRevision: 1.14.0
+            syncWave: "1"
+            values: |
+              provider: aws
+              region: us-west-2
+              policy: sync
+              domainFilters:
+                - saharbittman.com
+              serviceAccount:
+                create: true
+                name: external-dns
+                annotations:
+                  eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-external-dns-role-j3lrxpnp
+              txtOwnerId: eksdemo-cluster
+              sources:
+                - ingress
+                - service
+
+          # Wave 2 - אפליקציה
+          - name: flask-app
+            namespace: default
+            repoURL: https://github.com/sahar449/aws-eks-tf-argocd.git
+            path: chart-flask
+            targetRevision: HEAD
+            syncWave: "2"
+
+  template:
+    metadata:
+      name: '{{name}}'
+      namespace: argocd
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{syncWave}}'
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+
+    spec:
+      project: default
+      source:
+        repoURL: '{{repoURL}}'
+        targetRevision: '{{targetRevision}}'
+        {{- if .chart }}
+        chart: '{{chart}}'
+        helm:
+          values: |
+            {{values}}
+        {{- else }}
+        path: '{{path}}'
+        {{- end }}
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - PruneLast=true
+          - PrunePropagationPolicy=foreground
