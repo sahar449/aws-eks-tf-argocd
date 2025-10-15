@@ -56,6 +56,7 @@ jobs:
 
       - name: Helm Install ArgoCD
         run: |
+          aws eks update-kubeconfig --region us-west-2 --name eksdemo-cluster
           helm repo add argo https://argoproj.github.io/argo-helm
           helm repo update
           helm upgrade --install argocd argo/argo-cd \
@@ -94,7 +95,6 @@ jobs:
 
       - name: Terraform Destroy (Step 1 - EKS)
         run: |
-          cd terraform
           terraform destroy -target=module.eks -auto-approve || true
 
       - name: Remove Security Groups from VPC
@@ -105,5 +105,4 @@ jobs:
 
       - name: Terraform Destroy (Step 2 - All Remaining)
         run: |
-          cd terraform
           terraform destroy -auto-approve || true
