@@ -68,14 +68,11 @@ spec:
       source:
         repoURL: '{{repoURL}}'
         targetRevision: '{{targetRevision}}'
-        {{- if .chart }}
+        path: '{{path}}'
         chart: '{{chart}}'
         helm:
           values: |
             {{values}}
-        {{- else }}
-        path: '{{path}}'
-        {{- end }}
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{namespace}}'
