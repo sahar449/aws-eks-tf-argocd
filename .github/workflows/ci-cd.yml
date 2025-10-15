@@ -158,6 +158,7 @@ jobs:
 
       - name: Destroy EKS
         run: |
+          aws eks update-kubeconfig --region ${{ env.aws_region }} --name eksdemo-cluster
           git clone https://github.com/sahar449/aws-eks-tf-argocd.git
           cd aws-eks-tf-argocd/argocd-apps/argocd-flask
           kubectl delete -f flask-app.yaml
