@@ -1,14 +1,75 @@
+# =====================================
+# Helm Chart values.yaml Template
+# =====================================
+# File: chart-flask/values.yaml
+
+# Application Configuration
 app:
   name: flask-app
-  port: 5000
+  namespace: default
+  replicas: 2
+  image:
+    repository: 634647866665.dkr.ecr.us-west-2.amazonaws.com/eksdemo
+    tag: latest
+    pullPolicy: Always
 
-image:
-  repository: 634647866665.dkr.ecr.us-west-2.amazonaws.com/eksdemo
-  #tag: latest
-
+# Service Configuration
 service:
+  type: NodePort
   port: 5000
+  targetPort: 5000
 
+# Ingress Configuration
 ingress:
-  host: saharbittman.com
-  scheme: internet-facing
+  enabled: true
+  className: alb
+  annotations:
+    kubernetes.io/ingress.class: "alb"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: instance
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP":80}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/tags: "ManagedBy=argocd,Application=flask-app,Environment=production"
+    external-dns.alpha.kubernetes.io/hostname: "www.saharbittman.com"
+  
+  hosts:
+    - host: www.saharbittman.com
+      paths:
+        - path: /
+          pathType: Prefix
+  
+  tls:
+    - hosts:
+        - "*.saharbittman.com"
+
+# Resources
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
+# Health Checks
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3

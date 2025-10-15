@@ -1,16 +1,19 @@
+# =====================================
+# File: chart-flask/templates/service.yaml
+# =====================================
 apiVersion: v1
 kind: Service
 metadata:
-  name: flask-app-service
-  namespace: default
+  name: {{ .Values.app.name }}-service
+  namespace: {{ .Values.app.namespace }}
   labels:
-    app: flask-app
+    app: {{ .Values.app.name }}
 spec:
-  type: NodePort 
+  type: {{ .Values.service.type }}
   ports:
-    - port: 5000
-      targetPort: 5000
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
       protocol: TCP
       name: http
   selector:
-    app: flask-app
+    app: {{ .Values.app.name }}
