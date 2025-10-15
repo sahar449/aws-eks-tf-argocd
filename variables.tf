@@ -5,5 +5,5 @@ variable "availability_zones" { type = list(string) }
 variable "name_prefix" {}
 variable "cluster_name" {}
 variable "region" {}
-# variable "repo_name" {}
+variable "repo_name" {}
 

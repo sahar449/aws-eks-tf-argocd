@@ -1,33 +1,24 @@
-name: Terraform Pipeline
+name: CI-CD Full Pipeline
 
 on:
   workflow_dispatch:
-    inputs:
-      apply_or_destroy:
-        description: 'Choose action'
-        required: true
-        default: 'apply'
-        type: choice
-        options:
-          - apply
-          - destroy
 
 permissions:
-  id-token: write     
+  id-token: write
   contents: read
 
 env:
   aws_region: us-west-2
+  terraform_version: 1.5.7
   image_tag: latest
   repo_name: eksdemo
-  terraform_version: 1.5.7
 
 jobs:
-  terraform:
+  ci_cd_pipeline:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repo
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup Terraform
@@ -42,42 +33,78 @@ jobs:
           aws-region: ${{ env.aws_region }}
           role-session-name: github-actions
 
-      - name: Terraform Init
-        run: terraform init -upgrade -reconfigure
-
-      - name: Terraform Apply or Destroy
+      - name: Terraform Apply ECR
         run: |
-          if [ "${{ github.event.inputs.apply_or_destroy }}" == "apply" ]; then
-            terraform apply -auto-approve
-          else
-            terraform destroy -auto-approve
-          fi
+          cd terraform
+          terraform init -upgrade
+          terraform apply -auto-approve -target=module.ecr
 
-      # helm upgrade --install argocd argo/argo-cd \
-      #   --namespace argocd \
-      #   --create-namespace \
-      #   --set server.service.type=LoadBalancer \
-      #   --set server.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"="classic"
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.aws_region }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com
+
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com/${{ env.repo_name }}:${{ env.image_tag }} ./app
+
+      - name: Push Docker Image to ECR
+        run: |
+          docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com/${{ env.repo_name }}:${{ env.image_tag }}
+      - name: Terraform Apply Infrastructure
+        run: |
+          cd terraform
+          terraform apply -auto-approve
+
+      - name: Helm Install ArgoCD
+        run: |
+          helm repo add argo https://argoproj.github.io/argo-helm
+          helm repo update
+          helm upgrade --install argocd argo/argo-cd \
+            --namespace argocd \
+            --create-namespace \
+            --set server.service.type=LoadBalancer
+            --set server.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"="classic"
   
+      - name: Clone repo and apply AppOfApps
+        run: |
+          git clone https://github.com/sahar449/aws-eks-tf-argocd.git
+          sed -i "s|repository: .*|repository: ${AWS_ACCOUNT_NUMBER}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}|" ./chart-flask/values.yaml
+          cd aws-eks-tf-argocd/argocd-apps
+          kubectl apply -f appOfApps.yaml
+
   terraform_destroy_on_failure:
-    needs: terraform
+    needs: ci_cd_pipeline
     if: failure()
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repo
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: ${{ env.terraform_version }}
+          terraform_version: 1.5.7
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ env.aws_region }}
+          aws-region: us-west-2
           role-session-name: github-actions
 
-      - name: Terraform Destroy on Failure
-        run: terraform destroy -auto-approve
+      - name: Terraform Destroy (Step 1 - EKS)
+        run: |
+          cd terraform
+          terraform destroy -target=module.eks -auto-approve || true
+
+      - name: Remove Security Groups from VPC
+        run: |
+          aws ec2 describe-security-groups --region us-west-2 \
+            --query 'SecurityGroups[?GroupName!=`default`].GroupId' --output text | \
+            xargs -r -n1 aws ec2 delete-security-group --region us-west-2 --group-id || true
+
+      - name: Terraform Destroy (Step 2 - All Remaining)
+        run: |
+          cd terraform
+          terraform destroy -auto-approve || true

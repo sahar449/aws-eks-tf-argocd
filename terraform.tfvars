@@ -19,4 +19,4 @@ availability_zones = [
 name_prefix = "eksdemo"
 cluster_name = "eksdemo-cluster"
 region = "us-west-2"
-#repo_name = "eksdemo"
+repo_name = "eksdemo"
