@@ -122,16 +122,23 @@ jobs:
           aws-region: ${{ env.aws_region }}
           role-session-name: github-actions
 
-      - name: Terraform Destroy EKS
+      - name: Destroy EKS
         run: |
+          git clone https://github.com/sahar449/aws-eks-tf-argocd.git
+          cd aws-eks-tf-argocd/argocd-apps
+          kubectl apply -f appOfApps.yaml
+          helm uninstall argocd -n argocd || true
           terraform init -upgrade
           terraform destroy -target=module.eks -auto-approve || true
 
       - name: Remove Security Groups from VPC
         run: |
-          aws ec2 describe-security-groups --region ${{ env.aws_region }} \
-            --query 'SecurityGroups[?GroupName!=`default`].GroupId' --output text | \
-            xargs -r -n1 aws ec2 delete-security-group --region ${{ env.aws_region }} --group-id || true
+          for sg in $(aws ec2 describe-security-groups --region ${{ env.aws_region }} \
+            --query 'SecurityGroups[?GroupName!=`default`].GroupId' --output text); do
+            echo "Trying to delete SG $sg"
+            aws ec2 delete-security-group --region ${{ env.aws_region }} --group-id $sg || echo "Cannot delete $sg, still in use"
+          done
+
 
       - name: Terraform Destroy Remaining Resources
         run: |
