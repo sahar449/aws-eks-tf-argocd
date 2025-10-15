@@ -1,11 +1,14 @@
+
 # =====================================
-# 3. Flask App
+# Flask App
 # =====================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: flask-app
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"   # ירוץ אחרי ה-LB Controller
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -14,6 +17,10 @@ spec:
     repoURL: https://github.com/sahar449/aws-eks-tf-argocd.git
     targetRevision: HEAD
     path: chart-flask
+    helm:
+      releaseName: flask-app
+      valueFiles:
+        - values.yaml   # קובץ הערכים כבר קיים אצלך בצ'רט
   destination:
     server: https://kubernetes.default.svc
     namespace: default
@@ -21,15 +28,14 @@ spec:
     automated:
       prune: true
       selfHeal: true
-      allowEmpty: false  # Changed to false - safer
+      allowEmpty: false
     syncOptions:
+      - CreateNamespace=false
       - PruneLast=true
       - PrunePropagationPolicy=foreground
-      - CreateNamespace=false  # namespace already exists
-      - ApplyOutOfSyncOnly=true  # More efficient
     retry:
       limit: 5
       backoff:
         duration: 5s
         factor: 2
-        maxDuration: 3m  # Fixed typo (was 3mrs)
+        maxDuration: 3m

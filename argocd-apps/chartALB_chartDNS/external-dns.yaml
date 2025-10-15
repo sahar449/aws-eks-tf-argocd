@@ -1,5 +1,5 @@
 # =====================================
-# 2. External DNS
+# External DNS
 # =====================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application

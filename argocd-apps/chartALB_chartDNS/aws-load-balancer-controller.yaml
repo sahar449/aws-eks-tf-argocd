@@ -1,37 +1,44 @@
 # =====================================
-# 3. Flask App
+# AWS Load Balancer Controller
 # =====================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: flask-app
+  name: aws-load-balancer-controller
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"   
+    argocd.argoproj.io/sync-wave: "1"   # Ensures this app is deployed before any apps depending on the ALB Ingress Controllers
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://github.com/sahar449/aws-eks-tf-argocd.git
-    targetRevision: HEAD
-    path: chart-flask
+    repoURL: https://aws.github.io/eks-charts
+    chart: aws-load-balancer-controller
+    targetRevision: 1.7.0
     helm:
-      releaseName: flask-app
-      valueFiles:
-        - values.yaml 
+      values: |
+        clusterName: eksdemo-cluster
+        region: us-west-2
+        vpcId: vpc-026a43641c9a31bbd
+        serviceAccount:
+          create: true
+          name: aws-load-balancer-controller
+          annotations:
+            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-lb-controller-role-j3lrxpnp
+          cleanupOnDelete: true   # <--- this ensures ALB + listeners + SGs are deleted
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
+    namespace: kube-system
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
-      allowEmpty: false
+      allowEmpty: true # allows ArgoCD to successfully sync even if the chart produces no resources
     syncOptions:
-      - CreateNamespace=false
-      - PruneLast=true
-      - PrunePropagationPolicy=foreground
+      - CreateNamespace=true
+      - PruneLast=true # ensures pruning of resources happens after all new resources are created
+      - PrunePropagationPolicy=foreground # deletes dependent resources before deleting the parent resource
     retry:
       limit: 5
       backoff:
