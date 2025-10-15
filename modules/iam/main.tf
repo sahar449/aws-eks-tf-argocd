@@ -105,7 +105,3 @@ resource "aws_iam_role_policy_attachment" "external_dns_attach_custom" {
   policy_arn = aws_iam_policy.external_dns_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "external_dns_attach_managed" {
-  role       = aws_iam_role.external_dns_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonRoute53FullAccess"
-}
