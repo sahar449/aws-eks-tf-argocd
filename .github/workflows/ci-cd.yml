@@ -35,7 +35,6 @@ jobs:
 
       - name: Terraform Apply ECR
         run: |
-          cd terraform
           terraform init -upgrade
           terraform apply -auto-approve -target=module.ecr
 
