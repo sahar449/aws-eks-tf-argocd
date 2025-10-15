@@ -124,6 +124,7 @@ jobs:
 
       - name: Terraform Destroy EKS
         run: |
+          terraform init -upgrade
           terraform destroy -target=module.eks -auto-approve || true
 
       - name: Remove Security Groups from VPC
@@ -134,4 +135,5 @@ jobs:
 
       - name: Terraform Destroy Remaining Resources
         run: |
+          terraform init -upgrade
           terraform destroy -auto-approve || true
