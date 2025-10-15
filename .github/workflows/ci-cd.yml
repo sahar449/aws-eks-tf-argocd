@@ -159,7 +159,6 @@ jobs:
       - name: Destroy EKS
         run: |
           aws eks update-kubeconfig --region ${{ env.aws_region }} --name eksdemo-cluster
-          kubectl delete -f flask-app.yaml
           helm uninstall argocd -n argocd || true
           terraform init -upgrade
           terraform destroy -target=module.eks -auto-approve || true
