@@ -27,7 +27,7 @@ spec:
           create: true
           name: external-dns
           annotations:
-            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-external-dns-role-j3lrxpnp
+            eks.amazonaws.com/role-arn: arn:aws:iam::634647866665:role/eks-external-dns-role-a7l4ot1r
         txtOwnerId: eksdemo-cluster
         sources:
           - ingress

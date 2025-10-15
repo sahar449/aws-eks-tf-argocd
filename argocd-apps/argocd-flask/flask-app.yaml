@@ -8,7 +8,7 @@ metadata:
   name: flask-app
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"   # ירוץ אחרי ה-LB Controller
+    argocd.argoproj.io/sync-wave: "2"  
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -20,7 +20,7 @@ spec:
     helm:
       releaseName: flask-app
       valueFiles:
-        - values.yaml   # קובץ הערכים כבר קיים אצלך בצ'רט
+        - values.yaml 
   destination:
     server: https://kubernetes.default.svc
     namespace: default
