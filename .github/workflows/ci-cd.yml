@@ -132,7 +132,7 @@ jobs:
         run: |
           git clone https://github.com/sahar449/aws-eks-tf-argocd.git
           sed -i "s|repository: .*|repository: ${AWS_ACCOUNT_NUMBER}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}|" ./chart-flask/values.yaml
-          cd aws-eks-tf-argocd/argocd-apps
+          cd aws-eks-tf-argocd/argocd-apps/argocd-flask
           kubectl apply -f flask-app.yaml
 
   terraform_destroy:
@@ -159,7 +159,7 @@ jobs:
       - name: Destroy EKS
         run: |
           git clone https://github.com/sahar449/aws-eks-tf-argocd.git
-          cd aws-eks-tf-argocd/argocd-apps
+          cd aws-eks-tf-argocd/argocd-apps/argocd-flask
           kubectl delete -f flask-app.yaml
           helm uninstall argocd -n argocd || true
           terraform init -upgrade
