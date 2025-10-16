@@ -170,6 +170,8 @@ jobs:
       - name: Destroy EKS
         run: |
           aws eks update-kubeconfig --region ${{ env.aws_region }} --name ${{ env.cluster_name }}
+          kubectl patch app flask-app -n argocd -p '{"metadata":{"finalizers":null}}' --type=merge
+          kubectl delete applications -n argocd flask-app 
           helm uninstall argocd -n argocd || true
           terraform init -upgrade
           terraform destroy -target=module.eks -auto-approve || true
