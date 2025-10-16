@@ -21,6 +21,7 @@ env:
   terraform_version: 1.5.7
   image_tag: latest
   repo_name: eksdemo
+  cluster_name: eksdemo-cluster
 
 jobs:
   ci_cd_pipeline:
