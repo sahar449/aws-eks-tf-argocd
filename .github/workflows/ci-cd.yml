@@ -98,9 +98,13 @@ jobs:
             --set serviceAccount.create=true \
             --set serviceAccount.name=aws-load-balancer-controller \
             --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ secrets.AWS_ACCOUNT_NUMBER }}:role/$ALB_ROLE_NAME" \
-            --set cleanupOnDelete=true \
-          kubectl rollout status deployment/aws-load-balancer-controller -n kube-system --timeout=180s
+            --set cleanupOnDelete=true
 
+          echo "⏳ Waiting for ALB Controller deployment to become ready..."
+          kubectl rollout status deployment/aws-load-balancer-controller -n kube-system --timeout=300s
+
+          echo "✅ ALB Controller deployment is ready!"
+          kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
 
       - name: Install ExternalDNS via Helm
         run: |
@@ -138,44 +142,44 @@ jobs:
           cd aws-eks-tf-argocd/argocd-apps/argocd-flask
           kubectl apply -f flask-app.yaml
 
-  terraform_destroy:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.action == 'destroy' || failure() }}
-    needs: ci_cd_pipeline
+  # terraform_destroy:
+  #   runs-on: ubuntu-latest
+  #   if: ${{ github.event.inputs.action == 'destroy' || failure() }}
+  #   needs: ci_cd_pipeline
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout repo
+  #       uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: ${{ env.terraform_version }}
+  #     - name: Setup Terraform
+  #       uses: hashicorp/setup-terraform@v2
+  #       with:
+  #         terraform_version: ${{ env.terraform_version }}
 
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ env.aws_region }}
-          role-session-name: github-actions
+  #     - name: Configure AWS credentials via OIDC
+  #       uses: aws-actions/configure-aws-credentials@v3
+  #       with:
+  #         role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+  #         aws-region: ${{ env.aws_region }}
+  #         role-session-name: github-actions
 
-      - name: Destroy EKS
-        run: |
-          aws eks update-kubeconfig --region ${{ env.aws_region }} --name eksdemo-cluster
-          helm uninstall argocd -n argocd || true
-          terraform init -upgrade
-          terraform destroy -target=module.eks -auto-approve || true
+  #     - name: Destroy EKS
+  #       run: |
+  #         aws eks update-kubeconfig --region ${{ env.aws_region }} --name eksdemo-cluster
+  #         helm uninstall argocd -n argocd || true
+  #         terraform init -upgrade
+  #         terraform destroy -target=module.eks -auto-approve || true
 
-      - name: Remove Security Groups from VPC
-        run: |
-          for sg in $(aws ec2 describe-security-groups --region ${{ env.aws_region }} \
-            --query 'SecurityGroups[?GroupName!=`default`].GroupId' --output text); do
-            echo "Trying to delete SG $sg"
-            aws ec2 delete-security-group --region ${{ env.aws_region }} --group-id $sg || echo "Cannot delete $sg, still in use"
-          done
+  #     - name: Remove Security Groups from VPC
+  #       run: |
+  #         for sg in $(aws ec2 describe-security-groups --region ${{ env.aws_region }} \
+  #           --query 'SecurityGroups[?GroupName!=`default`].GroupId' --output text); do
+  #           echo "Trying to delete SG $sg"
+  #           aws ec2 delete-security-group --region ${{ env.aws_region }} --group-id $sg || echo "Cannot delete $sg, still in use"
+  #         done
 
 
-      - name: Terraform Destroy Remaining Resources
-        run: |
-          terraform init -upgrade
-          terraform destroy -auto-approve || true
+  #     - name: Terraform Destroy Remaining Resources
+  #       run: |
+  #         terraform init -upgrade
+  #         terraform destroy -auto-approve || true
