@@ -4,13 +4,6 @@
 
 data "aws_caller_identity" "current" {}
 
-# Random suffix for unique role names
-resource "random_string" "suffix" {
-  length  = 8
-  special = false
-  upper   = false
-}
-
 ###################################
 # 2. Load Balancer Controller Resources
 ###################################
@@ -22,7 +15,7 @@ data "aws_iam_policy" "lb_controller_policy" {
 
 # IAM Role for ALB Controller (IRSA)
 resource "aws_iam_role" "lb_controller_role" {
-  name = "eks-lb-controller-role-${random_string.suffix.result}"
+  name = "eks-lb-controller-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -56,7 +49,7 @@ resource "aws_iam_role_policy_attachment" "lb_controller_attach" {
 
 # Custom IAM Policy for Route53 access
 resource "aws_iam_policy" "external_dns_policy" {
-  name        = "ExternalDNSIAMPolicy-${random_string.suffix.result}"
+  name        = "ExternalDNSIAMPolicy"
   description = "IAM policy for External DNS to manage Route53 records"
   policy      = jsonencode({
     Version = "2012-10-17",
@@ -77,7 +70,7 @@ resource "aws_iam_policy" "external_dns_policy" {
 
 # IAM Role for External DNS (IRSA)
 resource "aws_iam_role" "external_dns_role" {
-  name = "eks-external-dns-role-${random_string.suffix.result}"
+  name = "eks-external-dns-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
