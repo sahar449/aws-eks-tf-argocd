@@ -9,7 +9,7 @@ app:
   namespace: default
   replicas: 2
   image:
-    repository: 634647866665.dkr.ecr.us-west-2.amazonaws.com/eksdemo
+    repository: #634647866665.dkr.ecr.us-west-2.amazonaws.com/eksdemo
     tag: latest
     pullPolicy: Always
 

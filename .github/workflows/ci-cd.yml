@@ -139,7 +139,7 @@ jobs:
             --set txtOwnerId=${{ env.cluster_name }} \
             --set cleanupOnDelete=true
 
-      - name: Clone repo and apply AppOfApps
+      - name: Ddeploy Flask App via ArgoCD
         run: |
           git clone https://github.com/sahar449/aws-eks-tf-argocd.git
           sed -i "s|repository: .*|repository: ${AWS_ACCOUNT_NUMBER}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}|" ./chart-flask/values.yaml
