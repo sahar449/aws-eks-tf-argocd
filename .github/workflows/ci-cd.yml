@@ -94,19 +94,19 @@ jobs:
             --create-namespace \
             --set clusterName=${{ env.cluster_name }} \
             --set region=${{ env.aws_region }} \
-            --set vpcId=$VPC_ID \
+            --set vpcId=vpc-02d5b92b0dc471df8 \
             --set serviceAccount.create=true \
             --set serviceAccount.name=aws-load-balancer-controller \
             --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ secrets.AWS_ACCOUNT_NUMBER }}:role/$ALB_ROLE_NAME" \
             --set cleanupOnDelete=true
 
-      - name: Wait for ALB Controller to be Ready
-        run: |    
-          kubectl rollout status deployment/aws-load-balancer-controller -n kube-system --timeout=300s
-          kubectl wait --for=condition=available --timeout=300s deployment/aws-load-balancer-controller -n kube-system
+      # - name: Wait for ALB Controller to be Ready
+      #   run: |    
+      #     kubectl rollout status deployment/aws-load-balancer-controller -n kube-system --timeout=300s
+      #     kubectl wait --for=condition=available --timeout=300s deployment/aws-load-balancer-controller -n kube-system
           
-          # Wait for webhook to be ready
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=aws-load-balancer-controller -n kube-system --timeout=300s
+      #     # Wait for webhook to be ready
+      #     kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=aws-load-balancer-controller -n kube-system --timeout=300s
           
 
       - name: Install ExternalDNS via Helm
