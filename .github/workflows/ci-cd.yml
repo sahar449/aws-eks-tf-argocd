@@ -152,7 +152,9 @@ jobs:
         env:
           ECR_NAME: ${{ secrets.ECR_NAME }}
         run: |
-             yq -i ".image.repository = \"$ECR_NAME\"" chart-flask/values.yaml
+             echo "ECR_NAME secret: $ECR_NAME"
+              yq -i '.image.repository = strenv(ECR_NAME)' chart-flask/values.yaml
+              cat chart-flask/values.yaml
 
       - name: Deploy Flask App via ArgoCD
         run: |
