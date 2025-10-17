@@ -155,8 +155,8 @@ jobs:
           
           echo "ArgoCD will target ECR Repository: ${FULL_ECR_REPO_URL}"
           
-          # 2. יצירת Application Manifest זמני
-          cat <<EOF > /tmp/argo-flask-app.yaml
+          # 2. יצירת Application Manifest זמני (שינוי: עטיפת EOF בגרשיים)
+          cat <<'EOF' > /tmp/argo-flask-app.yaml
           apiVersion: argoproj.io/v1alpha1
           kind: Application
           metadata:
@@ -166,15 +166,14 @@ jobs:
             project: default
             source:
               repoURL: https://github.com/${{ github.repository }}.git
-              # Argo CD ימשוך את ה-Chart מה-Revision הנוכחי
+              # משתני GitHub Actions עדיין יעבדו כי הם מטופלים על ידי ה-Runner לפני ה-Shell
               targetRevision: ${{ github.sha }}
               path: chart-flask
               helm:
                 parameters:
-                  # 🚨 הזרקת שם ה-Repository המלא! זה מה שאתה צריך.
+                  # 🚨 שימוש במשתנה ה-Shell המקומי: ${FULL_ECR_REPO_URL}
                 - name: image.repository
-                  value: ${FULL_ECR_REPO_URL}
-                  # הזרקת ה-Tag, כפי שתכננת
+                  value: ${FULL_ECR_REPO_URL} 
                 - name: image.tag
                   value: ${{ env.image_tag }}
             destination:
