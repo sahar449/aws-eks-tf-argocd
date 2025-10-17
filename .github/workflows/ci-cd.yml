@@ -148,48 +148,22 @@ jobs:
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
           sudo chmod +x /usr/bin/yq
 
-      - name: Deploy Flask App via ArgoCD
+      - name: Deploy Flask App via ArgoCD (Clean Injection)
         run: |
-          # 1. הרכבת כתובת ה-ECR המלאה (משימוש במשתני סביבה וסודות קיימים)
+          # 1. יצירת משתנה ה-Shell המקומי
           FULL_ECR_REPO_URL="${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com/${{ env.repo_name }}"
           
-          echo "ArgoCD will target ECR Repository: ${FULL_ECR_REPO_URL}"
-          
-          # 2. יצירת Application Manifest זמני (שינוי: עטיפת EOF בגרשיים)
-          cat <<'EOF' > /tmp/argo-flask-app.yaml
-          apiVersion: argoproj.io/v1alpha1
-          kind: Application
-          metadata:
-            name: flask-ecr-app
-            namespace: argocd
-          spec:
-            project: default
-            source:
-              repoURL: https://github.com/${{ github.repository }}.git
-              # משתני GitHub Actions עדיין יעבדו כי הם מטופלים על ידי ה-Runner לפני ה-Shell
-              targetRevision: ${{ github.sha }}
-              path: chart-flask
-              helm:
-                parameters:
-                  # 🚨 שימוש במשתנה ה-Shell המקומי: ${FULL_ECR_REPO_URL}
-                - name: image.repository
-                  value: ${FULL_ECR_REPO_URL} 
-                - name: image.tag
-                  value: ${{ env.image_tag }}
-            destination:
-              server: https://kubernetes.default.svc
-              namespace: flask-production
-            syncPolicy:
-              automated:
-                prune: true
-                selfHeal: true
-          EOF
-          
-          kubectl apply -f /tmp/argo-flask-app.yaml
-
-      - name: Deploy Flask App via ArgoCD
-        run: |
-            kubectl apply -f argo-flask.yaml
+          # 2. שימוש במשתנה ה-Shell בפקודה
+          argocd app create flask-ecr-app \
+            --repo https://github.com/${{ github.repository }}.git \
+            --path chart-flask \
+            --revision ${{ github.sha }} \
+            --dest-server https://kubernetes.default.svc \
+            --dest-namespace flask-production \
+            --helm-set image.repository="${FULL_ECR_REPO_URL}" \ # 👈 כאן זה יעבוד
+            --helm-set image.tag="${{ env.image_tag }}" \
+            --upsert \
+            --core
 
   # destroy_pipeline:
   #   runs-on: ubuntu-latest
