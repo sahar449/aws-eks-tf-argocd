@@ -145,7 +145,7 @@ jobs:
       - name: Ddeploy Flask App via ArgoCD
         run: |
             echo "Updating repository in values.yaml"
-            sed -i "s|^\(\s*repository:\).*|\1 $AWS_ACCOUNT_NUMBER.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME|" chart-flask/values.yaml
+            sed -i "s|^\(\s*repository:\).*|\1 ${{secrets.ECR_NAME}}|" chart-flask/values.yaml
             kubectl apply -f argo-flask.yaml
 
   # destroy_pipeline:

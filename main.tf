@@ -12,8 +12,6 @@ module "vpc" {
   private_subnet_cidrs  = var.private_subnet_cidrs
   availability_zones    = var.availability_zones
   name_prefix           = var.name_prefix
-
-  depends_on = [module.ecr]
 }
 
 module "eks" {
@@ -21,8 +19,6 @@ module "eks" {
   cluster_name       = var.cluster_name
   vpc_id             = module.vpc.vpc_id
   private_subnet_ids = module.vpc.private_subnet_ids
-
-  depends_on = [module.ecr]
 }
 
 module "iam" {
@@ -38,5 +34,4 @@ module "iam" {
 
 module "ssl" {
   source = "./modules/ssl"
-  depends_on = [module.ecr]
 }
