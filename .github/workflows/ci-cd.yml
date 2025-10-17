@@ -87,16 +87,16 @@ jobs:
                   - system:masters
           EOF
 
-      - name: Helm Install ArgoCD
-        run: |
-          aws eks update-kubeconfig --region ${{ env.aws_region }} --name ${{ env.cluster_name }}
-          helm repo add argo https://argoproj.github.io/argo-helm
-          helm repo update
-          helm upgrade --install argocd argo/argo-cd \
-            --namespace argocd \
-            --create-namespace \
-            --set server.service.type=LoadBalancer \
-            --set server.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"="classic"
+      # - name: Helm Install ArgoCD
+      #   run: |
+      #     aws eks update-kubeconfig --region ${{ env.aws_region }} --name ${{ env.cluster_name }}
+      #     helm repo add argo https://argoproj.github.io/argo-helm
+      #     helm repo update
+      #     helm upgrade --install argocd argo/argo-cd \
+      #       --namespace argocd \
+      #       --create-namespace \
+      #       --set server.service.type=LoadBalancer \
+      #       --set server.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"="classic"
 
       - name: Get VPC ID by Name
         run: |
@@ -155,10 +155,12 @@ jobs:
           # אימות ההתקנה
           argocd version --client
 
-      - name: Deploy Flask App via ArgoCD 
+      - name: Deploy Flask App via ArgoCD (Final CLI Fix)
         run: |
+          # 1. יצירת משתנה ה-Shell המקומי
           FULL_ECR_REPO_URL="${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com/${{ env.repo_name }}"
           
+          # 2. הרצת הפקודה עם הדגל הנכון
           argocd app create flask-ecr-app \
             --repo https://github.com/${{ github.repository }}.git \
             --path chart-flask \
@@ -170,7 +172,7 @@ jobs:
             --upsert \
             --core \
             --server argocd-server.argocd.svc.cluster.local \
-            --namespace argocd # 👈 הוסף את זה!
+            --argocd-namespace argocd # 👈 זה הדגל הנכון לציון ה-Namespace של Argo CD!
 
   # destroy_pipeline:
   #   runs-on: ubuntu-latest
