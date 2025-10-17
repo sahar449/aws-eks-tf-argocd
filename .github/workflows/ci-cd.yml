@@ -153,7 +153,7 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_NUMBER }}
           ECR_NAME: ${{ secrets.ECR_NAME }}
         run: |
-          yq eval '.image.repository = env(AWS_ACCOUNT_ID) + "/" + env(ECR_NAME)' -i values.yaml
+          yq eval '.image.repository = env(AWS_ACCOUNT_ID) + "/" + env(ECR_NAME)' -i chart-flask/values.yaml
 
       - name: Deploy Flask App via ArgoCD
         run: |
