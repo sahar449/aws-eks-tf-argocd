@@ -143,10 +143,17 @@ jobs:
             --set txtOwnerId=${{ env.cluster_name }} \
             --set cleanupOnDelete=true
       
-      - name: Install yq
+      # הוסף את ה-Step הזה לפני השימוש ב-argocd CLI
+      # הוסף את ה-Step הזה לפני השימוש ב-argocd CLI
+      - name: Download and Install ArgoCD CLI
         run: |
-          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
-          sudo chmod +x /usr/bin/yq
+          # הורדת הגרסה האחרונה
+          ARGOCD_VERSION=$(curl -s https://api.github.com/repos/argoproj/argo-cd/releases/latest | grep tag_name | cut -d '"' -f 4)
+          sudo curl -sSL -o /usr/local/bin/argocd "https://github.com/argoproj/argo-cd/releases/download/$ARGOCD_VERSION/argocd-linux-amd64"
+          sudo chmod +x /usr/local/bin/argocd
+          
+          # אימות ההתקנה
+          argocd version --client
 
       - name: Deploy Flask App via ArgoCD (Clean Injection)
         run: |
