@@ -148,12 +148,45 @@ jobs:
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
           sudo chmod +x /usr/bin/yq
 
-      - name: Set image in values
-        env:
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_NUMBER }}
-          ECR_NAME: ${{ secrets.ECR_NAME }}
+      - name: Deploy Flask App via ArgoCD
         run: |
-          yq eval '.image.repository = env(AWS_ACCOUNT_ID) + "/" + env(ECR_NAME)' -i chart-flask/values.yaml
+          # 1. הרכבת כתובת ה-ECR המלאה (משימוש במשתני סביבה וסודות קיימים)
+          FULL_ECR_REPO_URL="${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com/${{ env.repo_name }}"
+          
+          echo "ArgoCD will target ECR Repository: ${FULL_ECR_REPO_URL}"
+          
+          # 2. יצירת Application Manifest זמני
+          cat <<EOF > /tmp/argo-flask-app.yaml
+          apiVersion: argoproj.io/v1alpha1
+          kind: Application
+          metadata:
+            name: flask-ecr-app
+            namespace: argocd
+          spec:
+            project: default
+            source:
+              repoURL: https://github.com/${{ github.repository }}.git
+              # Argo CD ימשוך את ה-Chart מה-Revision הנוכחי
+              targetRevision: ${{ github.sha }}
+              path: chart-flask
+              helm:
+                parameters:
+                  # 🚨 הזרקת שם ה-Repository המלא! זה מה שאתה צריך.
+                - name: image.repository
+                  value: ${FULL_ECR_REPO_URL}
+                  # הזרקת ה-Tag, כפי שתכננת
+                - name: image.tag
+                  value: ${{ env.image_tag }}
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: flask-production
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+          EOF
+          
+          kubectl apply -f /tmp/argo-flask-app.yaml
 
       - name: Deploy Flask App via ArgoCD
         run: |
