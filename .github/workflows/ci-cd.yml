@@ -155,24 +155,43 @@ jobs:
           # אימות ההתקנה
           argocd version --client
 
-      - name: Deploy Flask App via ArgoCD (Final CLI Fix)
+      - name: Deploy Flask App via ArgoCD (Final Recommended Fix)
         run: |
-          # 1. יצירת משתנה ה-Shell המקומי
+          # 1. יצירת משתנה ה-Shell המקומי (כדי לבנות את ה-URL)
           FULL_ECR_REPO_URL="${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com/${{ env.repo_name }}"
           
-          # 2. הרצת הפקודה עם הדגל הנכון
-          argocd app create flask-ecr-app \
-            --repo https://github.com/${{ github.repository }}.git \
-            --path chart-flask \
-            --revision ${{ github.sha }} \
-            --dest-server https://kubernetes.default.svc \
-            --dest-namespace flask-production \
-            --helm-set image.repository="${FULL_ECR_REPO_URL}" \
-            --helm-set image.tag="${{ env.image_tag }}" \
-            --upsert \
-            --core \
-            --server argocd-server.argocd.svc.cluster.local \
-            --argocd-namespace argocd # 👈 זה הדגל הנכון לציון ה-Namespace של Argo CD!
+          # 2. יצירת Application Manifest זמני
+          cat <<EOF > /tmp/argo-flask-app.yaml
+          apiVersion: argoproj.io/v1alpha1
+          kind: Application
+          metadata:
+            name: flask-ecr-app
+            # 🚨 כאן אתה מציין ל-Kubernetes איפה לשמור את המשאב!
+            namespace: argocd 
+          spec:
+            project: default
+            source:
+              repoURL: https://github.com/${{ github.repository }}.git
+              targetRevision: ${{ github.sha }}
+              path: chart-flask
+              helm:
+                parameters:
+                # הזרקת ה-Repository הדינמי
+                - name: image.repository
+                  value: ${FULL_ECR_REPO_URL} 
+                - name: image.tag
+                  value: ${{ env.image_tag }}
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: flask-production
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+          EOF
+          
+          # 3. הפעלת המשאב באמצעות kubectl
+          kubectl apply -f /tmp/argo-flask-app.yaml
 
   # destroy_pipeline:
   #   runs-on: ubuntu-latest
