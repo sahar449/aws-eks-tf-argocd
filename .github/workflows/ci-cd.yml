@@ -148,13 +148,12 @@ jobs:
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
           sudo chmod +x /usr/bin/yq
 
-      - name: Update Helm values with yq
+      - name: Set image in values
         env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_NUMBER }}
           ECR_NAME: ${{ secrets.ECR_NAME }}
         run: |
-             echo "ECR_NAME secret: $ECR_NAME"
-              yq -i '.image.repository = strenv(ECR_NAME)' chart-flask/values.yaml
-              cat chart-flask/values.yaml
+          yq eval '.image.repository = env(AWS_ACCOUNT_ID) + "/" + env(ECR_NAME)' -i values.yaml
 
       - name: Deploy Flask App via ArgoCD
         run: |
