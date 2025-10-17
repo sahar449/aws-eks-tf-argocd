@@ -157,37 +157,32 @@ jobs:
 
       - name: Deploy Flask App via ArgoCD (Final Recommended Fix)
         run: |
-          # 1. יצירת משתנה ה-Shell המקומי (כדי לבנות את ה-URL)
-          FULL_ECR_REPO_URL="${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com/${{ env.repo_name }}"
-          
-          # 2. יצירת Application Manifest זמני
+
           cat <<EOF > /tmp/argo-flask-app.yaml
           apiVersion: argoproj.io/v1alpha1
           kind: Application
           metadata:
-            name: flask-ecr-app
-            # 🚨 כאן אתה מציין ל-Kubernetes איפה לשמור את המשאב!
-            namespace: argocd 
+            name: flask-app
+            namespace: argocd # ודא שזהו ה-namespace שבו מותקן Argo CD
           spec:
             project: default
             source:
-              repoURL: https://github.com/${{ github.repository }}.git
-              targetRevision: ${{ github.sha }}
+              repoURL: https://github.com/sahar449/aws-eks-tf-argocd.git
+              targetRevision: HEAD
               path: chart-flask
               helm:
-                parameters:
-                # הזרקת ה-Repository הדינמי
-                - name: image.repository
-                  value: ${FULL_ECR_REPO_URL} 
-                - name: image.tag
-                  value: ${{ env.image_tag }}
+                values: |
+                  image:
+                    repository: ${{secrets.ECR_NAME}}
             destination:
               server: https://kubernetes.default.svc
-              namespace: flask-production
+              namespace: default
             syncPolicy:
               automated:
                 prune: true
                 selfHeal: true
+              syncOptions:
+                - CreateNamespace=true
           EOF
           
           # 3. הפעלת המשאב באמצעות kubectl
