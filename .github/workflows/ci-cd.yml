@@ -152,7 +152,7 @@ jobs:
       - name: Login to ArgoCD and create/update app
         continue-on-error: true
         run: |
-          aws eks update-kubeconfig --region ${{ env.aws_region }} --name ${{ env.cluster_name }}
+          aws eks update-kubeconfig --region ${{ env.aws_region }} --name ${{ env.cluster_name }} > /dev/null 
           ARGOCD_ADMIN_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 --decode)
           echo "ARGO CD Admin Password: $ARGOCD_ADMIN_PASSWORD"
           ARGOCD_SERVER=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
@@ -171,47 +171,47 @@ jobs:
             --upsert
 
 
-  # destroy_pipeline:
-  #   runs-on: ubuntu-latest
-  #   if: ${{ github.event.inputs.action == 'destroy' || failure() }}
-  #   needs: ci_cd_pipeline
+  destroy_pipeline:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.action == 'destroy' || failure() }}
+    needs: ci_cd_pipeline
 
-  #   steps:
-  #     - name: Checkout repo
-  #       uses: actions/checkout@v4
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-  #     - name: Setup Terraform
-  #       uses: hashicorp/setup-terraform@v2
-  #       with:
-  #         terraform_version: ${{ env.terraform_version }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.terraform_version }}
 
-      # - name: Configure AWS credentials via OIDC
-      #   uses: aws-actions/configure-aws-credentials@v3
-      #   with:
-      #     role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-      #     aws-region: ${{ env.aws_region }}
-      #     role-session-name: github-actions
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.aws_region }}
+          role-session-name: github-actions
 
-  #     - name: Destroy EKS
-  #       run: |
-  #         aws eks update-kubeconfig --region ${{ env.aws_region }} --name ${{ env.cluster_name }} > /dev/null
-  #         kubectl patch ingress flask-app-ingress -p '{"metadata":{"finalizers":null}}' --type=merge
-  #         kubectl delete ingress flask-app-ingress || true        
-  #         kubectl patch app flask -n argocd -p '{"metadata":{"finalizers":null}}' --type=merge
-  #         kubectl delete applications -n argocd flask
-  #         helm uninstall argocd -n argocd || true
-  #         terraform init -upgrade
-  #         terraform destroy -target=module.eks -auto-approve || true
+      - name: Destroy EKS
+        run: |
+          aws eks update-kubeconfig --region ${{ env.aws_region }} --name ${{ env.cluster_name }} > /dev/null
+          kubectl patch ingress flask-app-ingress -p '{"metadata":{"finalizers":null}}' --type=merge
+          kubectl delete ingress flask-app-ingress || true        
+          kubectl patch app flask -n argocd -p '{"metadata":{"finalizers":null}}' --type=merge
+          kubectl delete applications -n argocd flask
+          helm uninstall argocd -n argocd || true
+          terraform init -upgrade
+          terraform destroy -target=module.eks -auto-approve || true
 
-  #     - name: Remove Security Groups from VPC
-  #       run: |
-  #         for sg in $(aws ec2 describe-security-groups --region ${{ env.aws_region }} \
-  #           --query 'SecurityGroups[?GroupName!=`default`].GroupId' --output text); do
-  #           echo "Trying to delete SG $sg"
-  #           aws ec2 delete-security-group --region ${{ env.aws_region }} --group-id $sg || echo "Cannot delete $sg, still in use"
-  #         done
+      - name: Remove Security Groups from VPC
+        run: |
+          for sg in $(aws ec2 describe-security-groups --region ${{ env.aws_region }} \
+            --query 'SecurityGroups[?GroupName!=`default`].GroupId' --output text); do
+            echo "Trying to delete SG $sg"
+            aws ec2 delete-security-group --region ${{ env.aws_region }} --group-id $sg || echo "Cannot delete $sg, still in use"
+          done
 
-  #     - name: Terraform Destroy Remaining Resources
-  #       run: |
-  #         terraform init -upgrade
-  #         terraform destroy -auto-approve || true
+      - name: Terraform Destroy Remaining Resources
+        run: |
+          terraform init -upgrade
+          terraform destroy -auto-approve || true
