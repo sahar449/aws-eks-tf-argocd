@@ -23,6 +23,7 @@ env:
   repo_name: eksdemo
   cluster_name: eksdemo-cluster
   vpc_name: eksdemo-vpc
+  ECR_NAME: ${{ secrets.ECR_NAME }} 
 
 jobs:
   ci_cd_pipeline:
@@ -141,13 +142,21 @@ jobs:
             --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ secrets.AWS_ACCOUNT_NUMBER }}:role/eks-external-dns-role" \
             --set txtOwnerId=${{ env.cluster_name }} \
             --set cleanupOnDelete=true
+      
+      - name: Install yq
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
 
-      - name: Deploy Flask App via ArgoCD
+      - name: Update Helm values with yq
         env:
           ECR_NAME: ${{ secrets.ECR_NAME }}
         run: |
-            echo "Updating repository in values.yaml"
-            sed -i "s|^\(\s*repository:\).*|\1 $ECR_NAME|" chart-flask/values.yaml
+          yq -i -y ".image.repository = \"${ECR_NAME}\"" chart-flask/values.yaml
+
+
+      - name: Deploy Flask App via ArgoCD
+        run: |
             kubectl apply -f argo-flask.yaml
 
   # destroy_pipeline:
