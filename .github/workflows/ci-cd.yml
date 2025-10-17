@@ -155,32 +155,34 @@ jobs:
           # אימות ההתקנה
           argocd version --client
 
-      - name: Deploy Flask App via ArgoCD (Final Recommended Fix)
+      - name: Deploy Flask App via ArgoCD 
         run: |
-          # 1. הרכבת משתנה Shell מקומי, כולל Secret
-          FULL_ECR_REPO_URL="${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com/${{ env.repo_name }}"
+          # הגדרת URL ECR קבוע לבדיקה
+          HARDCODED_ECR_URL="634647866665.dkr.ecr.us-west-2.amazonaws.com/eksdemo"
+          HARDCODED_SHA="a0079c97b8fb9796c2e98386ed43f23bfa5c3b13" # SHA קבוע זמנית לבדיקה
           
-          # 2. הזרקת הנתונים המלאים ל-YAML
+          # יצירת משאב Application YAML
           cat <<EOF > /tmp/argo-flask-app.yaml
           apiVersion: argoproj.io/v1alpha1
           kind: Application
           metadata:
             name: flask-app
-            namespace: argocd 
+            namespace: argocd # המשאב ייווצר ב-Namespace של Argo CD
           spec:
             project: default
             source:
               repoURL: https://github.com/sahar449/aws-eks-tf-argocd.git
-              targetRevision: ${{ github.sha }} # 👈 תמיד עדיף SHA על HEAD
+              targetRevision: ${HARDCODED_SHA} # משתמשים ב-SHA קבוע לבדיקה
               path: chart-flask
               helm:
-                values: |
-                  image:
-                    # 💡 התיקון: משתמשים במשתנה Shell שהוגדר למעלה!
-                    repository: ${FULL_ECR_REPO_URL}
+                parameters:
+                - name: image.repository
+                  value: ${HARDCODED_ECR_URL} # הכתובת המוקשחת
+                - name: image.tag
+                  value: latest
             destination:
               server: https://kubernetes.default.svc
-              namespace: flask-production # 👈 החזרתי ל-production כפי שרצית
+              namespace: flask-production
             syncPolicy:
               automated:
                 prune: true
@@ -189,7 +191,7 @@ jobs:
                 - CreateNamespace=true
           EOF
           
-          # 3. הפעלת המשאב באמצעות kubectl
+          # יישום המשאב באמצעות kubectl - זה חייב לעבוד
           kubectl apply -f /tmp/argo-flask-app.yaml
 
   # destroy_pipeline:
