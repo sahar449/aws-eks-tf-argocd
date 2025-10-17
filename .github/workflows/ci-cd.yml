@@ -146,46 +146,45 @@ jobs:
         run: |
             echo "Updating repository in values.yaml"
             sed -i "s|^\(\s*repository:\).*|\1 $AWS_ACCOUNT_NUMBER.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME|" chart-flask/values.yaml
-            cd aws-eks-tf-argocd/argocd-apps/argocd-flask
-            kubectl apply -f flask-app.yaml
+            kubectl apply -f argo-flask.yaml
 
-  destroy_pipeline:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.action == 'destroy' || failure() }}
-    needs: ci_cd_pipeline
+  # destroy_pipeline:
+  #   runs-on: ubuntu-latest
+  #   if: ${{ github.event.inputs.action == 'destroy' || failure() }}
+  #   needs: ci_cd_pipeline
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout repo
+  #       uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: ${{ env.terraform_version }}
+  #     - name: Setup Terraform
+  #       uses: hashicorp/setup-terraform@v2
+  #       with:
+  #         terraform_version: ${{ env.terraform_version }}
 
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ env.aws_region }}
-          role-session-name: github-actions
+  #     - name: Configure AWS credentials via OIDC
+  #       uses: aws-actions/configure-aws-credentials@v3
+  #       with:
+  #         role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+  #         aws-region: ${{ env.aws_region }}
+  #         role-session-name: github-actions
 
-      - name: Destroy EKS
-        run: |
-          aws eks update-kubeconfig --region ${{ env.aws_region }} --name ${{ env.cluster_name }}
-          helm uninstall argocd -n argocd || true
-          terraform init -upgrade
-          terraform destroy -target=module.eks -auto-approve || true
+  #     - name: Destroy EKS
+  #       run: |
+  #         aws eks update-kubeconfig --region ${{ env.aws_region }} --name ${{ env.cluster_name }}
+  #         helm uninstall argocd -n argocd || true
+  #         terraform init -upgrade
+  #         terraform destroy -target=module.eks -auto-approve || true
 
-      - name: Remove Security Groups from VPC
-        run: |
-          for sg in $(aws ec2 describe-security-groups --region ${{ env.aws_region }} \
-            --query 'SecurityGroups[?GroupName!=`default`].GroupId' --output text); do
-            echo "Trying to delete SG $sg"
-            aws ec2 delete-security-group --region ${{ env.aws_region }} --group-id $sg || echo "Cannot delete $sg, still in use"
-          done
+  #     - name: Remove Security Groups from VPC
+  #       run: |
+  #         for sg in $(aws ec2 describe-security-groups --region ${{ env.aws_region }} \
+  #           --query 'SecurityGroups[?GroupName!=`default`].GroupId' --output text); do
+  #           echo "Trying to delete SG $sg"
+  #           aws ec2 delete-security-group --region ${{ env.aws_region }} --group-id $sg || echo "Cannot delete $sg, still in use"
+  #         done
 
-      - name: Terraform Destroy Remaining Resources
-        run: |
-          terraform init -upgrade
-          terraform destroy -auto-approve || true
+  #     - name: Terraform Destroy Remaining Resources
+  #       run: |
+  #         terraform init -upgrade
+  #         terraform destroy -auto-approve || true
