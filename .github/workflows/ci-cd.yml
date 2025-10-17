@@ -157,26 +157,30 @@ jobs:
 
       - name: Deploy Flask App via ArgoCD (Final Recommended Fix)
         run: |
-
+          # 1. הרכבת משתנה Shell מקומי, כולל Secret
+          FULL_ECR_REPO_URL="${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com/${{ env.repo_name }}"
+          
+          # 2. הזרקת הנתונים המלאים ל-YAML
           cat <<EOF > /tmp/argo-flask-app.yaml
           apiVersion: argoproj.io/v1alpha1
           kind: Application
           metadata:
             name: flask-app
-            namespace: argocd # ודא שזהו ה-namespace שבו מותקן Argo CD
+            namespace: argocd 
           spec:
             project: default
             source:
               repoURL: https://github.com/sahar449/aws-eks-tf-argocd.git
-              targetRevision: HEAD
+              targetRevision: ${{ github.sha }} # 👈 תמיד עדיף SHA על HEAD
               path: chart-flask
               helm:
                 values: |
                   image:
-                    repository: ${{secrets.ECR_NAME}}
+                    # 💡 התיקון: משתמשים במשתנה Shell שהוגדר למעלה!
+                    repository: ${FULL_ECR_REPO_URL}
             destination:
               server: https://kubernetes.default.svc
-              namespace: default
+              namespace: flask-production # 👈 החזרתי ל-production כפי שרצית
             syncPolicy:
               automated:
                 prune: true
