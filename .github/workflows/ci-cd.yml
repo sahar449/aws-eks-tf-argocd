@@ -155,22 +155,24 @@ jobs:
           # אימות ההתקנה
           argocd version --client
 
-      - name: Deploy Flask App via ArgoCD (Clean Injection)
+      - name: Deploy Flask App via ArgoCD (Fixing Server Address)
         run: |
-          # 1. יצירת משתנה ה-Shell המקומי
+          # 1. הרכבת ה-URL המלא
           FULL_ECR_REPO_URL="${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.aws_region }}.amazonaws.com/${{ env.repo_name }}"
           
-          # 2. שימוש במשתנה ה-Shell בפקודה
+          # 2. שימוש בכתובת הפנימית של השרת
           argocd app create flask-ecr-app \
             --repo https://github.com/${{ github.repository }}.git \
             --path chart-flask \
             --revision ${{ github.sha }} \
             --dest-server https://kubernetes.default.svc \
             --dest-namespace flask-production \
-            --helm-set image.repository="${FULL_ECR_REPO_URL}" \ # 👈 כאן זה יעבוד
+            --helm-set image.repository="${FULL_ECR_REPO_URL}" \
             --helm-set image.tag="${{ env.image_tag }}" \
             --upsert \
-            --core
+            --core \
+            --server argocd-server.argocd.svc.cluster.local # 👈 ציון כתובת השרת הפנימית
+            # כתובת זו היא כתובת ה-Service של Argo CD בתוך הקלאסטר
 
   # destroy_pipeline:
   #   runs-on: ubuntu-latest
