@@ -3,7 +3,7 @@ app:
   namespace: default
   replicas: 2
   image:
-    repository: null
+    repository: 
     tag: latest
     pullPolicy: Always
 service:
@@ -56,3 +56,4 @@ readinessProbe:
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3
+
