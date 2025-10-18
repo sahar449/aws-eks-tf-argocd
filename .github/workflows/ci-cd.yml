@@ -196,6 +196,31 @@ jobs:
             --self-heal \
             --upsert
 
+      - name: Verify Flask App
+        run: |
+          EXPECTED_RESPONSE="Hello, World from Sahar Bittman!"
+          URL="https://www.saharbittman.com"
+
+          echo "⏳ Waiting for Flask app to respond with expected message..."
+
+          for i in {1..20}; do
+            RESPONSE=$(curl -sk $URL)
+            if [[ "$RESPONSE" == "$EXPECTED_RESPONSE" ]]; then
+              echo "✅ Flask app is up! Response: $RESPONSE"
+              break
+            else
+              echo "⚠️ Attempt $i/20: Flask app not ready yet. Got: $RESPONSE"
+            fi
+            sleep 10
+          done
+
+          # Final check
+          RESPONSE=$(curl -sk $URL)
+          if [[ "$RESPONSE" != "$EXPECTED_RESPONSE" ]]; then
+            echo "❌ Flask app did not respond with expected message after waiting."
+            exit 1
+          fi
+
 
   destroy_pipeline:
     runs-on: ubuntu-latest
@@ -221,21 +246,40 @@ jobs:
       - name: Destroy EKS
         run: |
           aws eks update-kubeconfig --region ${{ env.aws_region }} --name ${{ env.cluster_name }} > /dev/null
-          kubectl patch ingress flask-app-ingress -p '{"metadata":{"finalizers":null}}' --type=merge
-          kubectl delete ingress flask-app-ingress || true
+
+          INGRESS_NAME="flask-app-ingress"
+          NAMESPACE="default"
+
+          echo "🔹 Removing Ingress finalizers..."
+          kubectl get ingress $INGRESS_NAME -n $NAMESPACE -o json | jq 'del(.metadata.finalizers)' | kubectl apply -f - || true
+
+          echo "🔹 Deleting Ingress..."
+          kubectl delete ingress $INGRESS_NAME -n $NAMESPACE --ignore-not-found=true || true
+
+          echo "🔹 Waiting for Ingress and its Service to be deleted..."
           for i in {1..30}; do
-          if ! kubectl get ingress flask-app-ingress &>/dev/null; then
-            echo "Ingress deleted successfully ✅"
-            break
-          fi
-          echo "Waiting for Ingress to be deleted... ($i/30)"
-          sleep 10
-          done        
-          kubectl patch app flask -n argocd -p '{"metadata":{"finalizers":null}}' --type=merge
-          kubectl delete applications -n argocd flask
+            INGRESS_EXISTS=$(kubectl get ingress $INGRESS_NAME -n $NAMESPACE --ignore-not-found)
+            SERVICE_EXISTS=$(kubectl get svc $INGRESS_NAME -n $NAMESPACE --ignore-not-found)
+            
+            if [[ -z "$INGRESS_EXISTS" && -z "$SERVICE_EXISTS" ]]; then
+              echo "✅ Ingress and Service deleted successfully!"
+              break
+            fi
+
+            echo "⏳ Waiting for Ingress/Service to be deleted... ($i/30)"
+            sleep 10
+          done
+
+          echo "🔹 Cleaning ArgoCD application..."
+          kubectl patch app flask -n argocd -p '{"metadata":{"finalizers":null}}' --type=merge || true
+          kubectl delete applications -n argocd flask --ignore-not-found=true || true
           helm uninstall argocd -n argocd || true
+
+          echo "🔹 Destroying EKS cluster via Terraform..."
           terraform init -upgrade
           terraform destroy -target=module.eks -auto-approve || true
+
+
 
       - name: Remove Security Groups from VPC
         run: |
