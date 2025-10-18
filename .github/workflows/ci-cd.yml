@@ -201,25 +201,45 @@ jobs:
           EXPECTED_RESPONSE="Hello, World from Sahar Bittman!"
           URL="https://www.saharbittman.com"
 
+          echo "⏳ Waiting for ALB to become active..."
+
+          # מחכה שה־ALB יקבל סטטוס active
+          for i in {1..30}; do
+            ALB_STATUS=$(aws elbv2 describe-load-balancers \
+              --region ${{ env.aws_region }} \
+              --query 'LoadBalancers[*].State.Code' \
+              --output text 2>/dev/null | grep -m1 "active" || true)
+
+            if [[ "$ALB_STATUS" == "active" ]]; then
+              echo "✅ ALB is active!"
+              break
+            fi
+
+            echo "⚠️ Attempt $i/30: ALB not active yet..."
+            sleep 20
+          done
+
           echo "⏳ Waiting for Flask app to respond with expected message..."
 
-          for i in {1..20}; do
-            RESPONSE=$(curl -sk $URL)
+          # מחכה שהאפליקציה תחזיר את התגובה הנכונה
+          for i in {1..30}; do
+            RESPONSE=$(curl -sk $URL || true)
             if [[ "$RESPONSE" == "$EXPECTED_RESPONSE" ]]; then
               echo "✅ Flask app is up! Response: $RESPONSE"
               break
             else
-              echo "⚠️ Attempt $i/20: Flask app not ready yet. Got: $RESPONSE"
+              echo "⚠️ Attempt $i/30: Flask app not ready yet. Got: $RESPONSE"
             fi
             sleep 10
           done
 
-          # Final check
-          RESPONSE=$(curl -sk $URL)
+          # בדיקה סופית
+          RESPONSE=$(curl -sk $URL || true)
           if [[ "$RESPONSE" != "$EXPECTED_RESPONSE" ]]; then
             echo "❌ Flask app did not respond with expected message after waiting."
             exit 1
           fi
+
 
 
   destroy_pipeline:
@@ -245,10 +265,12 @@ jobs:
 
       - name: Destroy EKS
         run: |
+          set -e
           aws eks update-kubeconfig --region ${{ env.aws_region }} --name ${{ env.cluster_name }} > /dev/null
 
           INGRESS_NAME="flask-app-ingress"
           NAMESPACE="default"
+          REGION="${{ env.aws_region }}"
 
           echo "🔹 Removing Ingress finalizers..."
           kubectl get ingress $INGRESS_NAME -n $NAMESPACE -o json | jq 'del(.metadata.finalizers)' | kubectl apply -f - || true
@@ -256,19 +278,48 @@ jobs:
           echo "🔹 Deleting Ingress..."
           kubectl delete ingress $INGRESS_NAME -n $NAMESPACE --ignore-not-found=true || true
 
-          echo "🔹 Waiting for Ingress and its Service to be deleted..."
-          for i in {1..30}; do
+          echo "⏳ Waiting for Ingress and Service to be deleted..."
+          for i in {1..20}; do
             INGRESS_EXISTS=$(kubectl get ingress $INGRESS_NAME -n $NAMESPACE --ignore-not-found)
             SERVICE_EXISTS=$(kubectl get svc $INGRESS_NAME -n $NAMESPACE --ignore-not-found)
-            
             if [[ -z "$INGRESS_EXISTS" && -z "$SERVICE_EXISTS" ]]; then
               echo "✅ Ingress and Service deleted successfully!"
               break
             fi
-
-            echo "⏳ Waiting for Ingress/Service to be deleted... ($i/30)"
+            echo "Still waiting... ($i/20)"
             sleep 10
           done
+
+          echo "🔹 Searching for orphaned ALBs..."
+          LOAD_BALANCERS=$(aws elbv2 describe-load-balancers --region $REGION --query "LoadBalancers[?contains(DNSName, 'flask')].LoadBalancerArn" --output text || true)
+
+          if [[ -n "$LOAD_BALANCERS" ]]; then
+            echo "⚠️ Found orphaned ALBs — cleaning up..."
+            for ALB_ARN in $LOAD_BALANCERS; do
+              echo "🔸 Processing ALB: $ALB_ARN"
+
+              echo "🧹 Deleting Listeners..."
+              LISTENERS=$(aws elbv2 describe-listeners --region $REGION --load-balancer-arn "$ALB_ARN" --query 'Listeners[].ListenerArn' --output text || true)
+              for L in $LISTENERS; do
+                echo "Deleting listener: $L"
+                aws elbv2 delete-listener --region $REGION --listener-arn "$L" || true
+              done
+
+              echo "🧹 Deleting ALB..."
+              aws elbv2 delete-load-balancer --region $REGION --load-balancer-arn "$ALB_ARN" || true
+            done
+
+            echo "🧹 Cleaning Target Groups..."
+            TGs=$(aws elbv2 describe-target-groups --region $REGION --query "TargetGroups[?contains(TargetGroupName, 'flask')].TargetGroupArn" --output text || true)
+            for TG in $TGs; do
+              echo "Deleting target group: $TG"
+              aws elbv2 delete-target-group --region $REGION --target-group-arn "$TG" || true
+            done
+
+            echo "✅ ALBs and Target Groups cleaned successfully!"
+          else
+            echo "✅ No orphaned ALBs found."
+          fi
 
           echo "🔹 Cleaning ArgoCD application..."
           kubectl patch app flask -n argocd -p '{"metadata":{"finalizers":null}}' --type=merge || true
@@ -278,6 +329,7 @@ jobs:
           echo "🔹 Destroying EKS cluster via Terraform..."
           terraform init -upgrade
           terraform destroy -target=module.eks -auto-approve || true
+
 
 
 
